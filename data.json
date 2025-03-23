@@ -113,7 +113,7 @@
     }
   ],
   "settings": {
-    "darkMode": false,
+    "darkMode": true,
     "github": {
       "username": "NotDevNoob",
       "repoName": "npc.github.io"
