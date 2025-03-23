@@ -464,9 +464,14 @@
                 </label>
                 <i class="fas fa-moon"></i>
             </div>
-            <button id="edit-tasks-btn" class="btn btn-edit">
-                <i class="fas fa-edit"></i> Edit Tasks
-            </button>
+            <div>
+                <button id="edit-tasks-btn" class="btn btn-edit">
+                    <i class="fas fa-edit"></i> Edit Tasks
+                </button>
+                <button id="download-data-btn" class="btn" style="background-color: #607d8b;">
+                    <i class="fas fa-download"></i> Backup Data
+                </button>
+            </div>
         </div>
 
         <div class="player-legend">
@@ -547,11 +552,32 @@
         const saveGithubSettingsBtn = document.getElementById('save-github-settings');
         const toast = document.getElementById('toast');
 
-        // Load data from JSON file
+        // Load data from JSON file or localStorage
         async function loadData() {
             try {
-                const response = await fetch('data.json');
-                taskData = await response.json();
+                // First try to load from localStorage
+                const localData = localStorage.getItem('minecraftTaskData');
+
+                if (localData) {
+                    taskData = JSON.parse(localData);
+                    console.log('Loaded data from localStorage');
+                } else {
+                    // If not in localStorage, try to load from data.json
+                    try {
+                        const response = await fetch('data.json');
+                        if (response.ok) {
+                            taskData = await response.json();
+                            console.log('Loaded data from data.json');
+                        } else {
+                            throw new Error('Could not load data.json');
+                        }
+                    } catch (fetchError) {
+                        console.warn('Could not load from data.json, using default data');
+                        // If all else fails, use the default data structure
+                        taskData = getDefaultData();
+                    }
+                }
+
                 renderTasks();
 
                 // Apply saved theme
@@ -561,8 +587,112 @@
                 }
             } catch (error) {
                 console.error('Error loading data:', error);
-                showToast('Error loading data. Please try again.');
+                showToast('Error loading data. Using default data.');
+                taskData = getDefaultData();
+                renderTasks();
             }
+        }
+
+        // Get default data structure
+        function getDefaultData() {
+            return {
+                "players": [
+                    {
+                        "name": "Venxivity",
+                        "color": "#ff7f50",
+                        "shortName": "ven"
+                    },
+                    {
+                        "name": "Zenxivity",
+                        "color": "#6a5acd",
+                        "shortName": "zen"
+                    },
+                    {
+                        "name": "enpiesie",
+                        "color": "#32cd32",
+                        "shortName": "enp"
+                    }
+                ],
+                "phases": [
+                    {
+                        "id": 1,
+                        "title": "PHASE 1",
+                        "tasks": [
+                            {
+                                "title": "Get basic mats (wood, iron tools)",
+                                "assigned": ["ven"],
+                                "completed": false
+                            },
+                            {
+                                "title": "Find good village",
+                                "assigned": ["zen", "enp"],
+                                "completed": false
+                            }
+                        ]
+                    },
+                    {
+                        "id": 2,
+                        "title": "PHASE 2",
+                        "tasks": [
+                            {
+                                "title": "Build underground base near village",
+                                "assigned": ["ven", "zen", "enp"],
+                                "completed": false
+                            },
+                            {
+                                "title": "Move villagers to base",
+                                "assigned": ["ven", "zen", "enp"],
+                                "completed": false
+                            },
+                            {
+                                "title": "Destroy village",
+                                "assigned": ["ven", "zen", "enp"],
+                                "completed": false
+                            }
+                        ]
+                    },
+                    {
+                        "id": 3,
+                        "title": "PHASE 3",
+                        "tasks": [
+                            {
+                                "title": "Spruce/dark oak farm for sticks to trade with villager",
+                                "assigned": ["enp"],
+                                "completed": false
+                            },
+                            {
+                                "title": "Start building trading hall + Curing station",
+                                "assigned": ["ven"],
+                                "completed": false
+                            },
+                            {
+                                "title": "Get mats for villager curing (weakness pots + gapples)",
+                                "assigned": ["zen"],
+                                "completed": false
+                            }
+                        ]
+                    },
+                    {
+                        "id": 4,
+                        "title": "PHASE 4",
+                        "tasks": [
+                            {
+                                "title": "Get good villager trades then cure them",
+                                "assigned": ["enp"],
+                                "completed": false
+                            }
+                        ]
+                    }
+                ],
+                "settings": {
+                    "darkMode": false,
+                    "github": {
+                        "username": "",
+                        "repoName": "",
+                        "token": ""
+                    }
+                }
+            };
         }
 
         // Render tasks from data
@@ -654,17 +784,32 @@
         // Save data to JSON file
         async function saveData() {
             try {
-                // In a real environment, this would save to the server
-                // For now, we'll just update our local data
+                // Save to local storage for persistence between page loads
+                localStorage.setItem('minecraftTaskData', JSON.stringify(taskData));
+
+                // Create a Blob and download link for saving the file locally
+                const dataStr = JSON.stringify(taskData, null, 2);
+                const dataBlob = new Blob([dataStr], {type: 'application/json'});
+
+                // Update the data.json file if we're in a server environment
+                // This would normally use a server-side API endpoint
+                try {
+                    const saveRequest = new XMLHttpRequest();
+                    saveRequest.open('PUT', 'data.json', true);
+                    saveRequest.setRequestHeader('Content-Type', 'application/json');
+                    saveRequest.send(dataStr);
+                } catch (e) {
+                    console.log('Local file save not supported in this environment');
+                }
 
                 // If GitHub settings are configured, push to GitHub
                 if (taskData.settings.github.username &&
                     taskData.settings.github.repoName &&
                     taskData.settings.github.token) {
                     await pushToGitHub();
+                } else {
+                    showToast('Changes saved locally!');
                 }
-
-                showToast('Changes saved successfully!');
             } catch (error) {
                 console.error('Error saving data:', error);
                 showToast('Error saving changes. Please try again.');
@@ -676,17 +821,56 @@
             const { username, repoName, token } = taskData.settings.github;
 
             try {
-                // In a real environment, this would use the GitHub API
-                // to update the data.json file in the repository
-                console.log('Pushing changes to GitHub...');
+                showToast('Pushing to GitHub...');
 
-                // Simulate API call
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                // First, we need to check if the file exists and get its SHA if it does
+                const fileUrl = `https://api.github.com/repos/${username}/${repoName}/contents/data.json`;
 
-                showToast('Changes pushed to GitHub!');
+                // Get the current file (if it exists)
+                const fileResponse = await fetch(fileUrl, {
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+
+                let fileSha = '';
+                if (fileResponse.status === 200) {
+                    const fileData = await fileResponse.json();
+                    fileSha = fileData.sha;
+                } else if (fileResponse.status !== 404) {
+                    // If status is not 404 (not found) or 200 (ok), there's an error
+                    throw new Error(`GitHub API returned status ${fileResponse.status}`);
+                }
+
+                // Prepare the content to be committed
+                const content = btoa(JSON.stringify(taskData, null, 2)); // Base64 encode
+
+                // Create or update the file
+                const updateResponse = await fetch(fileUrl, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: 'Update task data',
+                        content: content,
+                        sha: fileSha || undefined // Only include SHA if file exists
+                    })
+                });
+
+                if (!updateResponse.ok) {
+                    const errorData = await updateResponse.json();
+                    throw new Error(`GitHub API error: ${errorData.message}`);
+                }
+
+                showToast('Changes pushed to GitHub successfully!');
+                console.log('GitHub push successful');
             } catch (error) {
                 console.error('Error pushing to GitHub:', error);
-                showToast('Error pushing to GitHub. Please check your settings.');
+                showToast(`Error pushing to GitHub: ${error.message}`);
             }
         }
 
@@ -738,7 +922,42 @@
             saveData();
             adminModal.style.display = 'none';
             showToast('GitHub settings saved!');
+
+            // Update UI to show GitHub is connected
+            updateGitHubIndicator();
         });
+
+        // Update GitHub indicator in the UI
+        function updateGitHubIndicator() {
+            const hasGitHubConfig = taskData.settings.github.username &&
+                                   taskData.settings.github.repoName &&
+                                   taskData.settings.github.token;
+
+            // Add or remove GitHub indicator in header
+            let indicator = document.getElementById('github-indicator');
+
+            if (!indicator && hasGitHubConfig) {
+                // Create indicator if it doesn't exist
+                indicator = document.createElement('div');
+                indicator.id = 'github-indicator';
+                indicator.style.position = 'absolute';
+                indicator.style.top = '10px';
+                indicator.style.right = '20px';
+                indicator.style.color = 'white';
+                indicator.style.display = 'flex';
+                indicator.style.alignItems = 'center';
+                indicator.style.gap = '5px';
+                indicator.style.fontSize = '0.9rem';
+                indicator.innerHTML = `
+                    <i class="fab fa-github"></i>
+                    <span>Connected to GitHub</span>
+                `;
+                document.querySelector('header').appendChild(indicator);
+            } else if (indicator && !hasGitHubConfig) {
+                // Remove indicator if it exists but shouldn't
+                indicator.remove();
+            }
+        }
 
         // Open edit tasks modal
         editTasksBtn.addEventListener('click', () => {
@@ -841,9 +1060,271 @@
             }
         });
 
+        // Download data as JSON file
+        function downloadDataFile() {
+            const dataStr = JSON.stringify(taskData, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+
+            const downloadLink = document.createElement('a');
+            downloadLink.href = url;
+            downloadLink.download = 'minecraft_tasks_backup.json';
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+
+            showToast('Data backup downloaded!');
+        }
+
         // Initialize the app
         document.addEventListener('DOMContentLoaded', function() {
-            loadData();
+            loadData().then(() => {
+                // Update GitHub indicator after data is loaded
+                updateGitHubIndicator();
+            });
+
+            // Add event listener for download button
+            document.getElementById('download-data-btn').addEventListener('click', downloadDataFile);
+        });
+    </script>
+</body>
+</html>                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: 'Update task data',
+                        content: content,
+                        sha: fileSha || undefined // Only include SHA if file exists
+                    })
+                });
+
+                if (!updateResponse.ok) {
+                    const errorData = await updateResponse.json();
+                    throw new Error(`GitHub API error: ${errorData.message}`);
+                }
+
+                showToast('Changes pushed to GitHub successfully!');
+                console.log('GitHub push successful');
+            } catch (error) {
+                console.error('Error pushing to GitHub:', error);
+                showToast(`Error pushing to GitHub: ${error.message}`);
+            }
+        }
+
+        // Show toast notification
+        function showToast(message) {
+            toast.textContent = message;
+            toast.classList.add('show');
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Toggle theme
+        themeToggle.addEventListener('change', () => {
+            if (themeToggle.checked) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                taskData.settings.darkMode = true;
+            } else {
+                document.documentElement.setAttribute('data-theme', 'light');
+                taskData.settings.darkMode = false;
+            }
+
+            saveData();
+        });
+
+        // Open admin modal with Ctrl+Shift+A
+        document.addEventListener('keydown', (event) => {
+            if (event.ctrlKey && event.shiftKey && event.key === 'A') {
+                event.preventDefault();
+
+                // Populate form with existing values
+                document.getElementById('github-username').value = taskData.settings.github.username || '';
+                document.getElementById('github-repo').value = taskData.settings.github.repoName || '';
+                document.getElementById('github-token').value = taskData.settings.github.token || '';
+
+                adminModal.style.display = 'block';
+            }
+        });
+
+        // Save GitHub settings
+        saveGithubSettingsBtn.addEventListener('click', () => {
+            taskData.settings.github = {
+                username: document.getElementById('github-username').value,
+                repoName: document.getElementById('github-repo').value,
+                token: document.getElementById('github-token').value
+            };
+
+            saveData();
+            adminModal.style.display = 'none';
+            showToast('GitHub settings saved!');
+
+            // Update UI to show GitHub is connected
+            updateGitHubIndicator();
+        });
+
+        // Update GitHub indicator in the UI
+        function updateGitHubIndicator() {
+            const hasGitHubConfig = taskData.settings.github.username &&
+                                   taskData.settings.github.repoName &&
+                                   taskData.settings.github.token;
+
+            // Add or remove GitHub indicator in header
+            let indicator = document.getElementById('github-indicator');
+
+            if (!indicator && hasGitHubConfig) {
+                // Create indicator if it doesn't exist
+                indicator = document.createElement('div');
+                indicator.id = 'github-indicator';
+                indicator.style.position = 'absolute';
+                indicator.style.top = '10px';
+                indicator.style.right = '20px';
+                indicator.style.color = 'white';
+                indicator.style.display = 'flex';
+                indicator.style.alignItems = 'center';
+                indicator.style.gap = '5px';
+                indicator.style.fontSize = '0.9rem';
+                indicator.innerHTML = `
+                    <i class="fab fa-github"></i>
+                    <span>Connected to GitHub</span>
+                `;
+                document.querySelector('header').appendChild(indicator);
+            } else if (indicator && !hasGitHubConfig) {
+                // Remove indicator if it exists but shouldn't
+                indicator.remove();
+            }
+        }
+
+        // Open edit tasks modal
+        editTasksBtn.addEventListener('click', () => {
+            const editForm = document.getElementById('edit-tasks-form');
+            editForm.innerHTML = '';
+
+            // Generate form for each phase and task
+            taskData.phases.forEach((phase, phaseIndex) => {
+                const phaseSection = document.createElement('div');
+                phaseSection.className = 'edit-phase';
+                phaseSection.innerHTML = `<h3>${phase.title}</h3>`;
+
+                phase.tasks.forEach((task, taskIndex) => {
+                    const taskForm = document.createElement('div');
+                    taskForm.className = 'form-group';
+
+                    taskForm.innerHTML = `
+                        <label>Task</label>
+                        <input type="text" class="form-control task-title-input"
+                               data-phase="${phaseIndex}" data-task="${taskIndex}"
+                               value="${task.title}">
+
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" class="player-checkbox"
+                                       data-phase="${phaseIndex}" data-task="${taskIndex}"
+                                       data-player="ven" ${task.assigned.includes('ven') ? 'checked' : ''}>
+                                Venxivity
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" class="player-checkbox"
+                                       data-phase="${phaseIndex}" data-task="${taskIndex}"
+                                       data-player="zen" ${task.assigned.includes('zen') ? 'checked' : ''}>
+                                Zenxivity
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" class="player-checkbox"
+                                       data-phase="${phaseIndex}" data-task="${taskIndex}"
+                                       data-player="enp" ${task.assigned.includes('enp') ? 'checked' : ''}>
+                                enpiesie
+                            </label>
+                        </div>
+                        <hr style="margin: 15px 0; border: 0; border-top: 1px solid var(--border-color);">
+                    `;
+
+                    phaseSection.appendChild(taskForm);
+                });
+
+                editForm.appendChild(phaseSection);
+            });
+
+            editTasksModal.style.display = 'block';
+        });
+
+        // Save edited tasks
+        saveTasksBtn.addEventListener('click', () => {
+            // Update task titles
+            document.querySelectorAll('.task-title-input').forEach(input => {
+                const phaseIndex = input.getAttribute('data-phase');
+                const taskIndex = input.getAttribute('data-task');
+                taskData.phases[phaseIndex].tasks[taskIndex].title = input.value;
+            });
+
+            // Update player assignments
+            document.querySelectorAll('.player-checkbox').forEach(checkbox => {
+                const phaseIndex = checkbox.getAttribute('data-phase');
+                const taskIndex = checkbox.getAttribute('data-task');
+                const player = checkbox.getAttribute('data-player');
+                const task = taskData.phases[phaseIndex].tasks[taskIndex];
+
+                if (checkbox.checked) {
+                    if (!task.assigned.includes(player)) {
+                        task.assigned.push(player);
+                    }
+                } else {
+                    task.assigned = task.assigned.filter(p => p !== player);
+                }
+            });
+
+            saveData();
+            renderTasks();
+            editTasksModal.style.display = 'none';
+        });
+
+        // Close modals when clicking the X
+        document.querySelectorAll('.close').forEach(closeBtn => {
+            closeBtn.addEventListener('click', () => {
+                adminModal.style.display = 'none';
+                editTasksModal.style.display = 'none';
+            });
+        });
+
+        // Close modals when clicking outside
+        window.addEventListener('click', (event) => {
+            if (event.target === adminModal) {
+                adminModal.style.display = 'none';
+            }
+            if (event.target === editTasksModal) {
+                editTasksModal.style.display = 'none';
+            }
+        });
+
+        // Download data as JSON file
+        function downloadDataFile() {
+            const dataStr = JSON.stringify(taskData, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+
+            const downloadLink = document.createElement('a');
+            downloadLink.href = url;
+            downloadLink.download = 'minecraft_tasks_backup.json';
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+
+            showToast('Data backup downloaded!');
+        }
+
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            loadData().then(() => {
+                // Update GitHub indicator after data is loaded
+                updateGitHubIndicator();
+            });
+
+            // Add event listener for download button
+            document.getElementById('download-data-btn').addEventListener('click', downloadDataFile);
         });
     </script>
 </body>
