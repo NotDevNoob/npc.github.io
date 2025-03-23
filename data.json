@@ -23,12 +23,17 @@
       "tasks": [
         {
           "title": "Get basic mats (wood, iron tools)",
-          "assigned": ["ven"],
+          "assigned": [
+            "ven"
+          ],
           "completed": false
         },
         {
           "title": "Find good village",
-          "assigned": ["zen", "enp"],
+          "assigned": [
+            "zen",
+            "enp"
+          ],
           "completed": false
         }
       ]
@@ -39,17 +44,29 @@
       "tasks": [
         {
           "title": "Build underground base near village",
-          "assigned": ["ven", "zen", "enp"],
+          "assigned": [
+            "ven",
+            "zen",
+            "enp"
+          ],
           "completed": false
         },
         {
           "title": "Move villagers to base",
-          "assigned": ["ven", "zen", "enp"],
+          "assigned": [
+            "ven",
+            "zen",
+            "enp"
+          ],
           "completed": false
         },
         {
           "title": "Destroy village",
-          "assigned": ["ven", "zen", "enp"],
+          "assigned": [
+            "ven",
+            "zen",
+            "enp"
+          ],
           "completed": false
         }
       ]
@@ -60,17 +77,23 @@
       "tasks": [
         {
           "title": "Spruce/dark oak farm for sticks to trade with villager",
-          "assigned": ["enp"],
+          "assigned": [
+            "enp"
+          ],
           "completed": false
         },
         {
           "title": "Start building trading hall + Curing station",
-          "assigned": ["ven"],
+          "assigned": [
+            "ven"
+          ],
           "completed": false
         },
         {
           "title": "Get mats for villager curing (weakness pots + gapples)",
-          "assigned": ["zen"],
+          "assigned": [
+            "zen"
+          ],
           "completed": false
         }
       ]
@@ -81,7 +104,9 @@
       "tasks": [
         {
           "title": "Get good villager trades then cure them",
-          "assigned": ["enp"],
+          "assigned": [
+            "enp"
+          ],
           "completed": false
         }
       ]
@@ -90,9 +115,8 @@
   "settings": {
     "darkMode": false,
     "github": {
-      "username": "",
-      "repoName": "",
-      "token": ""
+      "username": "NotDevNoob",
+      "repoName": "npc.github.io"
     }
   }
 }
