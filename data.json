@@ -1,0 +1,98 @@
+{
+  "players": [
+    {
+      "name": "Venxivity",
+      "color": "#ff7f50",
+      "shortName": "ven"
+    },
+    {
+      "name": "Zenxivity",
+      "color": "#6a5acd",
+      "shortName": "zen"
+    },
+    {
+      "name": "enpiesie",
+      "color": "#32cd32",
+      "shortName": "enp"
+    }
+  ],
+  "phases": [
+    {
+      "id": 1,
+      "title": "PHASE 1",
+      "tasks": [
+        {
+          "title": "Get basic mats (wood, iron tools)",
+          "assigned": ["ven"],
+          "completed": false
+        },
+        {
+          "title": "Find good village",
+          "assigned": ["zen", "enp"],
+          "completed": false
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "PHASE 2",
+      "tasks": [
+        {
+          "title": "Build underground base near village",
+          "assigned": ["ven", "zen", "enp"],
+          "completed": false
+        },
+        {
+          "title": "Move villagers to base",
+          "assigned": ["ven", "zen", "enp"],
+          "completed": false
+        },
+        {
+          "title": "Destroy village",
+          "assigned": ["ven", "zen", "enp"],
+          "completed": false
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "PHASE 3",
+      "tasks": [
+        {
+          "title": "Spruce/dark oak farm for sticks to trade with villager",
+          "assigned": ["enp"],
+          "completed": false
+        },
+        {
+          "title": "Start building trading hall + Curing station",
+          "assigned": ["ven"],
+          "completed": false
+        },
+        {
+          "title": "Get mats for villager curing (weakness pots + gapples)",
+          "assigned": ["zen"],
+          "completed": false
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "PHASE 4",
+      "tasks": [
+        {
+          "title": "Get good villager trades then cure them",
+          "assigned": ["enp"],
+          "completed": false
+        }
+      ]
+    }
+  ],
+  "settings": {
+    "darkMode": false,
+    "github": {
+      "username": "",
+      "repoName": "",
+      "token": ""
+    }
+  }
+}
