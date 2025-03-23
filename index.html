@@ -541,7 +541,7 @@
     <script>
         // Global data object
         let taskData = null;
-
+        
         // DOM Elements
         const phasesContainer = document.getElementById('phases-container');
         const themeToggle = document.getElementById('theme-toggle');
@@ -551,13 +551,13 @@
         const saveTasksBtn = document.getElementById('save-tasks');
         const saveGithubSettingsBtn = document.getElementById('save-github-settings');
         const toast = document.getElementById('toast');
-
+        
         // Load data from JSON file or localStorage
         async function loadData() {
             try {
                 // First try to load from localStorage
                 const localData = localStorage.getItem('minecraftTaskData');
-
+                
                 if (localData) {
                     taskData = JSON.parse(localData);
                     console.log('Loaded data from localStorage');
@@ -577,9 +577,9 @@
                         taskData = getDefaultData();
                     }
                 }
-
+                
                 renderTasks();
-
+                
                 // Apply saved theme
                 if (taskData.settings.darkMode) {
                     document.documentElement.setAttribute('data-theme', 'dark');
@@ -592,7 +592,7 @@
                 renderTasks();
             }
         }
-
+        
         // Get default data structure
         function getDefaultData() {
             return {
@@ -688,44 +688,43 @@
                     "darkMode": false,
                     "github": {
                         "username": "",
-                        "repoName": "",
-                        "token": ""
+                        "repoName": ""
                     }
                 }
             };
         }
-
+        
         // Render tasks from data
         function renderTasks() {
             phasesContainer.innerHTML = '';
-
+            
             taskData.phases.forEach(phase => {
                 const phaseElement = document.createElement('div');
                 phaseElement.className = 'phase';
-
+                
                 phaseElement.innerHTML = `
                     <div class="phase-header">${phase.title}</div>
                     <div class="phase-content">
                         ${renderPhaseTasks(phase.tasks)}
                     </div>
                 `;
-
+                
                 phasesContainer.appendChild(phaseElement);
             });
-
+            
             // Add event listeners to checkboxes
             document.querySelectorAll('.custom-checkbox').forEach(checkbox => {
                 checkbox.addEventListener('click', toggleTaskCompletion);
             });
         }
-
+        
         // Render tasks for a specific phase
         function renderPhaseTasks(tasks) {
             return tasks.map((task, index) => {
                 const assignedClasses = getAssignedClasses(task.assigned);
                 const completedClass = task.completed ? 'completed' : '';
                 const checkedClass = task.completed ? 'checked' : '';
-
+                
                 return `
                     <div class="task ${assignedClasses} ${completedClass}" data-task-id="${index}">
                         <div class="task-checkbox">
@@ -741,7 +740,7 @@
                 `;
             }).join('');
         }
-
+        
         // Get CSS classes for task based on assigned players
         function getAssignedClasses(assigned) {
             if (assigned.length === 0) return '';
@@ -752,7 +751,7 @@
             if (assigned.includes('enp')) return 'enp';
             return '';
         }
-
+        
         // Render assigned player tags
         function renderAssignedTags(assigned) {
             return assigned.map(player => {
@@ -760,37 +759,37 @@
                 return `<span class="assigned ${player}">${playerData.name}</span>`;
             }).join('');
         }
-
+        
         // Toggle task completion status
         function toggleTaskCompletion(event) {
             const checkbox = event.currentTarget;
             const taskId = checkbox.getAttribute('data-task-id');
             const taskElement = checkbox.closest('.task');
-            const phaseIndex = Array.from(document.querySelectorAll('.phase')).findIndex(phase =>
+            const phaseIndex = Array.from(document.querySelectorAll('.phase')).findIndex(phase => 
                 phase.contains(taskElement)
             );
-
+            
             // Toggle checkbox state
             checkbox.classList.toggle('checked');
             taskElement.classList.toggle('completed');
-
+            
             // Update data
             taskData.phases[phaseIndex].tasks[taskId].completed = checkbox.classList.contains('checked');
-
+            
             // Save data
             saveData();
         }
-
+        
         // Save data to JSON file
         async function saveData() {
             try {
                 // Save to local storage for persistence between page loads
                 localStorage.setItem('minecraftTaskData', JSON.stringify(taskData));
-
+                
                 // Create a Blob and download link for saving the file locally
                 const dataStr = JSON.stringify(taskData, null, 2);
                 const dataBlob = new Blob([dataStr], {type: 'application/json'});
-
+                
                 // Update the data.json file if we're in a server environment
                 // This would normally use a server-side API endpoint
                 try {
@@ -801,11 +800,10 @@
                 } catch (e) {
                     console.log('Local file save not supported in this environment');
                 }
-
+                
                 // If GitHub settings are configured, push to GitHub
-                if (taskData.settings.github.username &&
-                    taskData.settings.github.repoName &&
-                    taskData.settings.github.token) {
+                if (taskData.settings.github.username && 
+                    taskData.settings.github.repoName) {
                     await pushToGitHub();
                 } else {
                     showToast('Changes saved locally!');
@@ -815,17 +813,23 @@
                 showToast('Error saving changes. Please try again.');
             }
         }
-
+        
         // Push changes to GitHub
         async function pushToGitHub() {
-            const { username, repoName, token } = taskData.settings.github;
-
+            const { username, repoName } = taskData.settings.github;
+            const token = localStorage.getItem('githubToken');
+            
+            if (!token) {
+                showToast('GitHub token not found. Please set up GitHub integration again.');
+                return;
+            }
+            
             try {
                 showToast('Pushing to GitHub...');
-
+                
                 // First, we need to check if the file exists and get its SHA if it does
                 const fileUrl = `https://api.github.com/repos/${username}/${repoName}/contents/data.json`;
-
+                
                 // Get the current file (if it exists)
                 const fileResponse = await fetch(fileUrl, {
                     headers: {
@@ -833,7 +837,7 @@
                         'Accept': 'application/vnd.github.v3+json'
                     }
                 });
-
+                
                 let fileSha = '';
                 if (fileResponse.status === 200) {
                     const fileData = await fileResponse.json();
@@ -842,10 +846,13 @@
                     // If status is not 404 (not found) or 200 (ok), there's an error
                     throw new Error(`GitHub API returned status ${fileResponse.status}`);
                 }
-
+                
+                // Create a clean version of taskData without the token
+                const cleanTaskData = JSON.parse(JSON.stringify(taskData));
+                
                 // Prepare the content to be committed
-                const content = btoa(JSON.stringify(taskData, null, 2)); // Base64 encode
-
+                const content = btoa(JSON.stringify(cleanTaskData, null, 2)); // Base64 encode
+                
                 // Create or update the file
                 const updateResponse = await fetch(fileUrl, {
                     method: 'PUT',
@@ -860,12 +867,12 @@
                         sha: fileSha || undefined // Only include SHA if file exists
                     })
                 });
-
+                
                 if (!updateResponse.ok) {
                     const errorData = await updateResponse.json();
                     throw new Error(`GitHub API error: ${errorData.message}`);
                 }
-
+                
                 showToast('Changes pushed to GitHub successfully!');
                 console.log('GitHub push successful');
             } catch (error) {
@@ -873,17 +880,17 @@
                 showToast(`Error pushing to GitHub: ${error.message}`);
             }
         }
-
+        
         // Show toast notification
         function showToast(message) {
             toast.textContent = message;
             toast.classList.add('show');
-
+            
             setTimeout(() => {
                 toast.classList.remove('show');
             }, 3000);
         }
-
+        
         // Toggle theme
         themeToggle.addEventListener('change', () => {
             if (themeToggle.checked) {
@@ -893,49 +900,59 @@
                 document.documentElement.setAttribute('data-theme', 'light');
                 taskData.settings.darkMode = false;
             }
-
+            
             saveData();
         });
-
+        
         // Open admin modal with Ctrl+Shift+A
         document.addEventListener('keydown', (event) => {
             if (event.ctrlKey && event.shiftKey && event.key === 'A') {
                 event.preventDefault();
-
+                
                 // Populate form with existing values
                 document.getElementById('github-username').value = taskData.settings.github.username || '';
                 document.getElementById('github-repo').value = taskData.settings.github.repoName || '';
-                document.getElementById('github-token').value = taskData.settings.github.token || '';
-
+                document.getElementById('github-token').value = localStorage.getItem('githubToken') || '';
+                
                 adminModal.style.display = 'block';
             }
         });
-
+        
         // Save GitHub settings
         saveGithubSettingsBtn.addEventListener('click', () => {
+            const username = document.getElementById('github-username').value;
+            const repoName = document.getElementById('github-repo').value;
+            const token = document.getElementById('github-token').value;
+            
+            // Store username and repo name in taskData (will be saved to data.json)
             taskData.settings.github = {
-                username: document.getElementById('github-username').value,
-                repoName: document.getElementById('github-repo').value,
-                token: document.getElementById('github-token').value
+                username: username,
+                repoName: repoName
+                // Token is NOT stored in taskData/data.json
             };
-
+            
+            // Store token separately in localStorage (not in data.json)
+            if (token) {
+                localStorage.setItem('githubToken', token);
+            }
+            
             saveData();
             adminModal.style.display = 'none';
             showToast('GitHub settings saved!');
-
+            
             // Update UI to show GitHub is connected
             updateGitHubIndicator();
         });
-
+        
         // Update GitHub indicator in the UI
         function updateGitHubIndicator() {
-            const hasGitHubConfig = taskData.settings.github.username &&
-                                   taskData.settings.github.repoName &&
-                                   taskData.settings.github.token;
-
+            const hasGitHubConfig = taskData.settings.github.username && 
+                                   taskData.settings.github.repoName && 
+                                   localStorage.getItem('githubToken');
+            
             // Add or remove GitHub indicator in header
             let indicator = document.getElementById('github-indicator');
-
+            
             if (!indicator && hasGitHubConfig) {
                 // Create indicator if it doesn't exist
                 indicator = document.createElement('div');
@@ -958,60 +975,60 @@
                 indicator.remove();
             }
         }
-
+        
         // Open edit tasks modal
         editTasksBtn.addEventListener('click', () => {
             const editForm = document.getElementById('edit-tasks-form');
             editForm.innerHTML = '';
-
+            
             // Generate form for each phase and task
             taskData.phases.forEach((phase, phaseIndex) => {
                 const phaseSection = document.createElement('div');
                 phaseSection.className = 'edit-phase';
                 phaseSection.innerHTML = `<h3>${phase.title}</h3>`;
-
+                
                 phase.tasks.forEach((task, taskIndex) => {
                     const taskForm = document.createElement('div');
                     taskForm.className = 'form-group';
-
+                    
                     taskForm.innerHTML = `
                         <label>Task</label>
-                        <input type="text" class="form-control task-title-input"
-                               data-phase="${phaseIndex}" data-task="${taskIndex}"
+                        <input type="text" class="form-control task-title-input" 
+                               data-phase="${phaseIndex}" data-task="${taskIndex}" 
                                value="${task.title}">
-
+                        
                         <div class="checkbox-group">
                             <label class="checkbox-label">
-                                <input type="checkbox" class="player-checkbox"
-                                       data-phase="${phaseIndex}" data-task="${taskIndex}"
+                                <input type="checkbox" class="player-checkbox" 
+                                       data-phase="${phaseIndex}" data-task="${taskIndex}" 
                                        data-player="ven" ${task.assigned.includes('ven') ? 'checked' : ''}>
                                 Venxivity
                             </label>
                             <label class="checkbox-label">
-                                <input type="checkbox" class="player-checkbox"
-                                       data-phase="${phaseIndex}" data-task="${taskIndex}"
+                                <input type="checkbox" class="player-checkbox" 
+                                       data-phase="${phaseIndex}" data-task="${taskIndex}" 
                                        data-player="zen" ${task.assigned.includes('zen') ? 'checked' : ''}>
                                 Zenxivity
                             </label>
                             <label class="checkbox-label">
-                                <input type="checkbox" class="player-checkbox"
-                                       data-phase="${phaseIndex}" data-task="${taskIndex}"
+                                <input type="checkbox" class="player-checkbox" 
+                                       data-phase="${phaseIndex}" data-task="${taskIndex}" 
                                        data-player="enp" ${task.assigned.includes('enp') ? 'checked' : ''}>
                                 enpiesie
                             </label>
                         </div>
                         <hr style="margin: 15px 0; border: 0; border-top: 1px solid var(--border-color);">
                     `;
-
+                    
                     phaseSection.appendChild(taskForm);
                 });
-
+                
                 editForm.appendChild(phaseSection);
             });
-
+            
             editTasksModal.style.display = 'block';
         });
-
+        
         // Save edited tasks
         saveTasksBtn.addEventListener('click', () => {
             // Update task titles
@@ -1020,14 +1037,14 @@
                 const taskIndex = input.getAttribute('data-task');
                 taskData.phases[phaseIndex].tasks[taskIndex].title = input.value;
             });
-
+            
             // Update player assignments
             document.querySelectorAll('.player-checkbox').forEach(checkbox => {
                 const phaseIndex = checkbox.getAttribute('data-phase');
                 const taskIndex = checkbox.getAttribute('data-task');
                 const player = checkbox.getAttribute('data-player');
                 const task = taskData.phases[phaseIndex].tasks[taskIndex];
-
+                
                 if (checkbox.checked) {
                     if (!task.assigned.includes(player)) {
                         task.assigned.push(player);
@@ -1036,12 +1053,12 @@
                     task.assigned = task.assigned.filter(p => p !== player);
                 }
             });
-
+            
             saveData();
             renderTasks();
             editTasksModal.style.display = 'none';
         });
-
+        
         // Close modals when clicking the X
         document.querySelectorAll('.close').forEach(closeBtn => {
             closeBtn.addEventListener('click', () => {
@@ -1049,7 +1066,7 @@
                 editTasksModal.style.display = 'none';
             });
         });
-
+        
         // Close modals when clicking outside
         window.addEventListener('click', (event) => {
             if (event.target === adminModal) {
@@ -1059,270 +1076,30 @@
                 editTasksModal.style.display = 'none';
             }
         });
-
+        
         // Download data as JSON file
         function downloadDataFile() {
             const dataStr = JSON.stringify(taskData, null, 2);
             const dataBlob = new Blob([dataStr], {type: 'application/json'});
             const url = URL.createObjectURL(dataBlob);
-
+            
             const downloadLink = document.createElement('a');
             downloadLink.href = url;
             downloadLink.download = 'minecraft_tasks_backup.json';
             document.body.appendChild(downloadLink);
             downloadLink.click();
             document.body.removeChild(downloadLink);
-
+            
             showToast('Data backup downloaded!');
         }
-
+        
         // Initialize the app
         document.addEventListener('DOMContentLoaded', function() {
             loadData().then(() => {
                 // Update GitHub indicator after data is loaded
                 updateGitHubIndicator();
             });
-
-            // Add event listener for download button
-            document.getElementById('download-data-btn').addEventListener('click', downloadDataFile);
-        });
-    </script>
-</body>
-</html>                    method: 'PUT',
-                    headers: {
-                        'Authorization': `token ${token}`,
-                        'Accept': 'application/vnd.github.v3+json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        message: 'Update task data',
-                        content: content,
-                        sha: fileSha || undefined // Only include SHA if file exists
-                    })
-                });
-
-                if (!updateResponse.ok) {
-                    const errorData = await updateResponse.json();
-                    throw new Error(`GitHub API error: ${errorData.message}`);
-                }
-
-                showToast('Changes pushed to GitHub successfully!');
-                console.log('GitHub push successful');
-            } catch (error) {
-                console.error('Error pushing to GitHub:', error);
-                showToast(`Error pushing to GitHub: ${error.message}`);
-            }
-        }
-
-        // Show toast notification
-        function showToast(message) {
-            toast.textContent = message;
-            toast.classList.add('show');
-
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, 3000);
-        }
-
-        // Toggle theme
-        themeToggle.addEventListener('change', () => {
-            if (themeToggle.checked) {
-                document.documentElement.setAttribute('data-theme', 'dark');
-                taskData.settings.darkMode = true;
-            } else {
-                document.documentElement.setAttribute('data-theme', 'light');
-                taskData.settings.darkMode = false;
-            }
-
-            saveData();
-        });
-
-        // Open admin modal with Ctrl+Shift+A
-        document.addEventListener('keydown', (event) => {
-            if (event.ctrlKey && event.shiftKey && event.key === 'A') {
-                event.preventDefault();
-
-                // Populate form with existing values
-                document.getElementById('github-username').value = taskData.settings.github.username || '';
-                document.getElementById('github-repo').value = taskData.settings.github.repoName || '';
-                document.getElementById('github-token').value = taskData.settings.github.token || '';
-
-                adminModal.style.display = 'block';
-            }
-        });
-
-        // Save GitHub settings
-        saveGithubSettingsBtn.addEventListener('click', () => {
-            taskData.settings.github = {
-                username: document.getElementById('github-username').value,
-                repoName: document.getElementById('github-repo').value,
-                token: document.getElementById('github-token').value
-            };
-
-            saveData();
-            adminModal.style.display = 'none';
-            showToast('GitHub settings saved!');
-
-            // Update UI to show GitHub is connected
-            updateGitHubIndicator();
-        });
-
-        // Update GitHub indicator in the UI
-        function updateGitHubIndicator() {
-            const hasGitHubConfig = taskData.settings.github.username &&
-                                   taskData.settings.github.repoName &&
-                                   taskData.settings.github.token;
-
-            // Add or remove GitHub indicator in header
-            let indicator = document.getElementById('github-indicator');
-
-            if (!indicator && hasGitHubConfig) {
-                // Create indicator if it doesn't exist
-                indicator = document.createElement('div');
-                indicator.id = 'github-indicator';
-                indicator.style.position = 'absolute';
-                indicator.style.top = '10px';
-                indicator.style.right = '20px';
-                indicator.style.color = 'white';
-                indicator.style.display = 'flex';
-                indicator.style.alignItems = 'center';
-                indicator.style.gap = '5px';
-                indicator.style.fontSize = '0.9rem';
-                indicator.innerHTML = `
-                    <i class="fab fa-github"></i>
-                    <span>Connected to GitHub</span>
-                `;
-                document.querySelector('header').appendChild(indicator);
-            } else if (indicator && !hasGitHubConfig) {
-                // Remove indicator if it exists but shouldn't
-                indicator.remove();
-            }
-        }
-
-        // Open edit tasks modal
-        editTasksBtn.addEventListener('click', () => {
-            const editForm = document.getElementById('edit-tasks-form');
-            editForm.innerHTML = '';
-
-            // Generate form for each phase and task
-            taskData.phases.forEach((phase, phaseIndex) => {
-                const phaseSection = document.createElement('div');
-                phaseSection.className = 'edit-phase';
-                phaseSection.innerHTML = `<h3>${phase.title}</h3>`;
-
-                phase.tasks.forEach((task, taskIndex) => {
-                    const taskForm = document.createElement('div');
-                    taskForm.className = 'form-group';
-
-                    taskForm.innerHTML = `
-                        <label>Task</label>
-                        <input type="text" class="form-control task-title-input"
-                               data-phase="${phaseIndex}" data-task="${taskIndex}"
-                               value="${task.title}">
-
-                        <div class="checkbox-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" class="player-checkbox"
-                                       data-phase="${phaseIndex}" data-task="${taskIndex}"
-                                       data-player="ven" ${task.assigned.includes('ven') ? 'checked' : ''}>
-                                Venxivity
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" class="player-checkbox"
-                                       data-phase="${phaseIndex}" data-task="${taskIndex}"
-                                       data-player="zen" ${task.assigned.includes('zen') ? 'checked' : ''}>
-                                Zenxivity
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" class="player-checkbox"
-                                       data-phase="${phaseIndex}" data-task="${taskIndex}"
-                                       data-player="enp" ${task.assigned.includes('enp') ? 'checked' : ''}>
-                                enpiesie
-                            </label>
-                        </div>
-                        <hr style="margin: 15px 0; border: 0; border-top: 1px solid var(--border-color);">
-                    `;
-
-                    phaseSection.appendChild(taskForm);
-                });
-
-                editForm.appendChild(phaseSection);
-            });
-
-            editTasksModal.style.display = 'block';
-        });
-
-        // Save edited tasks
-        saveTasksBtn.addEventListener('click', () => {
-            // Update task titles
-            document.querySelectorAll('.task-title-input').forEach(input => {
-                const phaseIndex = input.getAttribute('data-phase');
-                const taskIndex = input.getAttribute('data-task');
-                taskData.phases[phaseIndex].tasks[taskIndex].title = input.value;
-            });
-
-            // Update player assignments
-            document.querySelectorAll('.player-checkbox').forEach(checkbox => {
-                const phaseIndex = checkbox.getAttribute('data-phase');
-                const taskIndex = checkbox.getAttribute('data-task');
-                const player = checkbox.getAttribute('data-player');
-                const task = taskData.phases[phaseIndex].tasks[taskIndex];
-
-                if (checkbox.checked) {
-                    if (!task.assigned.includes(player)) {
-                        task.assigned.push(player);
-                    }
-                } else {
-                    task.assigned = task.assigned.filter(p => p !== player);
-                }
-            });
-
-            saveData();
-            renderTasks();
-            editTasksModal.style.display = 'none';
-        });
-
-        // Close modals when clicking the X
-        document.querySelectorAll('.close').forEach(closeBtn => {
-            closeBtn.addEventListener('click', () => {
-                adminModal.style.display = 'none';
-                editTasksModal.style.display = 'none';
-            });
-        });
-
-        // Close modals when clicking outside
-        window.addEventListener('click', (event) => {
-            if (event.target === adminModal) {
-                adminModal.style.display = 'none';
-            }
-            if (event.target === editTasksModal) {
-                editTasksModal.style.display = 'none';
-            }
-        });
-
-        // Download data as JSON file
-        function downloadDataFile() {
-            const dataStr = JSON.stringify(taskData, null, 2);
-            const dataBlob = new Blob([dataStr], {type: 'application/json'});
-            const url = URL.createObjectURL(dataBlob);
-
-            const downloadLink = document.createElement('a');
-            downloadLink.href = url;
-            downloadLink.download = 'minecraft_tasks_backup.json';
-            document.body.appendChild(downloadLink);
-            downloadLink.click();
-            document.body.removeChild(downloadLink);
-
-            showToast('Data backup downloaded!');
-        }
-
-        // Initialize the app
-        document.addEventListener('DOMContentLoaded', function() {
-            loadData().then(() => {
-                // Update GitHub indicator after data is loaded
-                updateGitHubIndicator();
-            });
-
+            
             // Add event listener for download button
             document.getElementById('download-data-btn').addEventListener('click', downloadDataFile);
         });
